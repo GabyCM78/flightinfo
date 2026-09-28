@@ -53,10 +53,10 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 ## Current status
 - Done: API key obtained, heartBeat and arrivals tested in the Swedavia portal,
   `mock_data/` samples saved, `.venv` created, packages installed.
-- Step 1 files done: `.gitignore` (fixed leading spaces), `requirements.txt` (pinned),
+- Step 1 done: `.gitignore` (fixed leading spaces), `requirements.txt` (pinned),
   `pytest.ini`, `.env.example`, `config.py` (key verified to load).
-- Next: `git init`, check that `.env` is not in `git status`, create GitHub repo,
-  commit `Initial project setup`. Then step 2 (formatting.py).
+  Git repo on `main`, pushed to https://github.com/GabyCM78/flightinfo (`.env` not tracked).
+- Next: step 2, `formatting.py`, starting with `fmt_time`.
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
