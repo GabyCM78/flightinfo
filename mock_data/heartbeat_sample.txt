@@ -1,0 +1,16 @@
+HTTP response
+HTTP/1.1 200 OK
+
+cache-control: no-cache
+content-encoding: gzip
+content-length: 128
+content-type: application/json; charset=utf-8
+date: Mon, 28 Sep 2026 12:58:40 GMT
+expires: -1
+last-modified: 2026-09-28T12:58:25Z
+last-modified-inminutes: 0
+pragma: no-cache
+vary: Accept-Encoding,Origin
+x-powered-by: ASP.NET
+
+"IsAlive"
