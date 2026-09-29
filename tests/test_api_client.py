@@ -6,7 +6,16 @@ import pytest
 import requests
 
 import api_client
-from api_client import ApiError, get, get_arrivals, get_departures, heartbeat, query, unwrap_flight
+from api_client import (
+    ApiError,
+    build_filter,
+    get,
+    get_arrivals,
+    get_departures,
+    heartbeat,
+    query,
+    unwrap_flight,
+)
 from config import BASE_URL, TIMEOUT, MissingApiKeyError
 
 DAY = date(2026, 9, 29)
@@ -280,3 +289,32 @@ def test_query_unexpected_data_gives_api_error(monkeypatch):
 )
 def test_unwrap_flight(item, expected):
     assert unwrap_flight(item) == expected
+
+
+# --- build_filter -----------------------------------------------------------
+
+def test_build_filter_airport_and_date():
+    assert build_filter("ARN", DAY) == "airport eq 'ARN' and scheduled eq '260929'"
+
+
+def test_build_filter_with_flight_type():
+    assert build_filter("ARN", DAY, flight_type="D") == (
+        "airport eq 'ARN' and scheduled eq '260929' and flightType eq 'D'"
+    )
+
+
+def test_build_filter_with_flight_id():
+    assert build_filter("ARN", DAY, flight_id="SK532") == (
+        "airport eq 'ARN' and scheduled eq '260929' and flightId eq 'SK532'"
+    )
+
+
+def test_build_filter_with_everything():
+    assert build_filter("GOT", DAY, flight_type="A", flight_id="SK1") == (
+        "airport eq 'GOT' and scheduled eq '260929' and flightType eq 'A' and flightId eq 'SK1'"
+    )
+
+
+def test_build_filter_pads_the_date_with_zeros():
+    # Same form as Swedavia's documentation example '180209' (YYMMDD).
+    assert "scheduled eq '260105'" in build_filter("ARN", date(2026, 1, 5))

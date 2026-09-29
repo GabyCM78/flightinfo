@@ -102,3 +102,17 @@ def query(filter_text, count=1000, max_pages=MAX_PAGES):
             break
         params["continuationtoken"] = token
     return flights
+
+
+def build_filter(airport, day, flight_type=None, flight_id=None):
+    """Build a /query filter, e.g. "airport eq 'ARN' and scheduled eq '260929' and flightType eq 'D'".
+
+    The values must already be validated (parse_airport, parse_date, parse_flight_id).
+    flight_type is "A" (arrivals) or "D" (departures); leave it out to get both.
+    """
+    parts = [f"airport eq '{airport}'", f"scheduled eq '{day:%y%m%d}'"]
+    if flight_type:
+        parts.append(f"flightType eq '{flight_type}'")
+    if flight_id:
+        parts.append(f"flightId eq '{flight_id}'")
+    return " and ".join(parts)
