@@ -77,7 +77,9 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - 5b done: `show_flights()` (50 per page) + `sort_by_time()` in formatting.py.
 - 5c done: menu in `airport.py` with options 1–6 + q (`ACTIONS` dict, all errors caught in `main`,
   demo with `DEMO_PAUSE = 2` s between requests). All options tried against the real API.
-- Next: 5d, `destinations.py` + `city_country.json` as menu option 7. Then step 6 (README, DOCUMENTATION.md).
+- 5d done: `destinations.py` + `city_country.json` (138 cities from the real mock data) as menu option 7
+  (1 = departures, 2 = arrivals, 3 = both). `REQUEST_PAUSE = 2` s. 176 tests passing. **Step 5 done.**
+- Next: step 6, README.md and docs/DOCUMENTATION.md (Phase 1–4 + Conclusion) from docs/notes.md, then the video.
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
@@ -190,7 +192,8 @@ flightinfo/
 │   ├── test_formatting.py  # exists, 36 tests
 │   ├── test_api_client.py  # exists, mocks requests, no real calls
 │   ├── test_user_input.py  # exists
-│   └── test_destinations.py
+│   ├── test_airport.py     # exists, fake input()
+│   └── test_destinations.py # exists
 └── docs/
     ├── notes.md            # running log of problems and solutions (exists)
     └── DOCUMENTATION.md    # Phase 1–4 + Conclusion, per the school's guide

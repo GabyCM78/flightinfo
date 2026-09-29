@@ -363,6 +363,42 @@ My decisions (**assumptions** where the video does not show it):
   ("date in UTC", from how I read the documentation) was wrong. The "UTC limitation" does not exist.
 - My `parse_date` already uses the Swedish date for "today", so the app was right without a change.
 - Lesson: **check assumptions against real data**. The documentation (or my reading of it) was not enough.
+
+### Destination overview, menu option 7 (step 5d): what the original did and my decisions
+- The original code had the comment "Ask what to show (also a while True loop until 1/2/3 chosen)", and the
+  filter question ("Filter?") came **before** "Choose [1-3]". So 1–3 chose **what to show**, not the filter type.
+  A wrong choice gave "Type 1, 2 or 3." and asked again.
+- **My version:** airport → date → optional filter (country or city) → 1 = departures, 2 = arrivals, 3 = both
+  → lines like `Frankfurt (5 flights) [Germany]`, most flights first.
+  _Assumption:_ the exact order of 1 and 2 (departures first) is my guess; the video does not show it.
+- **`city_country.json`:** all 138 cities that appear in my real mock data (the original had 263 cities → 59 countries).
+  Airport names like `London LHR` / `Paris CDG` are turned into the city (`London`, `Paris`) first.
+  Rule: a city I am not sure about is left out, so it shows `[Unknown]` instead of a wrong country.
+- Data detail: the API spells both "Bucarest" and "Bucharest" (different airlines). Both map to Romania, but they are
+  counted as two cities. Left as it is.
+- Basel: the airport (EuroAirport) is physically in France, but the city is in Switzerland, so "Switzerland".
+
+### `destinations.py` (step 5d, part 1)
+- `city_name()` removes an airport code at the end with a regular expression, `r" [A-Z]{3}$"`
+  (a space + exactly 3 capital letters at the very end): `London LHR` → `London`. `Åre Östersund` is unchanged.
+- `other_end()` works for both directions: a departure has `arrivalAirportEnglish`, an arrival has
+  `departureAirportEnglish`.
+- `count_destinations()` uses `collections.Counter` to count flights per city.
+- `format_destinations()` sorts with the key `(-count, city)` (most flights first, then A–Z), looks up the country
+  (`Unknown` if missing), filters on city **or** country, and writes "1 flight" / "2 flights".
+- 14 tests. With the real departures data: **every destination has a country**, and the top list from ARN is
+  Helsinki 20, Oslo 20, Copenhagen 19, London 13 (LHR + LGW together). Total: **169 passed in 0.22 s**.
+
+### Menu option 7 (step 5d, part 2)
+- Same order as the original: airport → date → filter (Enter = none) → `[1] departures, [2] arrivals or [3] both`.
+  A wrong choice gives "Type 1, 2 or 3." and asks again.
+- Reuses `prepare_flights`, so ghost entries are not counted, and `now` counts only upcoming flights.
+- Choice 3 makes two requests, so it pauses 2 seconds between them. The constant `DEMO_PAUSE` was renamed to
+  `REQUEST_PAUSE`, because the demo and option 7 both use it now.
+- **Improvement:** the original was a separate script that exited after one run. Here the user comes back to the
+  menu, and the error handling in `main` protects this option too.
+- 7 new tests (e.g. choice 1 calls only departures, 3 calls both and pauses once, a ghost entry is not counted).
+  Total: **176 passed in 0.24 s**.
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
@@ -377,7 +413,7 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest (135 tests so far), no real API calls |
+| Tests | None visible | pytest (176 tests), no real API calls |
 | Flight list order | Order from the API (not sorted, as far as I can tell) | Sorted by scheduled time |
 | Paging in OData query | Read `continuationToken` (wrong case), so page 2 was probably never fetched | Reads `continuationtoken`, stops on missing token **or** a non-full page, max 5 pages |
 | Structure | Mostly one large file | Small modules, one job each |

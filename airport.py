@@ -6,6 +6,7 @@ from datetime import datetime
 import api_client
 from api_client import ApiError, build_filter
 from config import AIRPORTS, MissingApiKeyError
+from destinations import count_destinations, format_destinations, load_city_country
 from formatting import (
     SWEDISH_TZ,
     fmt_time,
@@ -19,7 +20,7 @@ from user_input import parse_airport, parse_date, parse_flight_id
 
 PAGE_SIZE = 50  # same as the original app
 DEMO_AIRPORT = "ARN"
-DEMO_PAUSE = 2  # seconds between requests, to stay under the rate limit (we got a 429 once)
+REQUEST_PAUSE = 2  # seconds between requests in a row, to stay under the rate limit (we got a 429 once)
 
 MENU = """
 === Swedavia FlightInfo ===
@@ -164,12 +165,43 @@ def demo(ask=input, wait=time.sleep):
     ]
     for number, (title, run) in enumerate(steps, start=1):
         if number > 1:
-            wait(DEMO_PAUSE)
+            wait(REQUEST_PAUSE)
         print(f"[{number}/{len(steps)}] {title}")
         try:
             print(f"  ✅ {run()}")
         except (ApiError, MissingApiKeyError) as error:
             print(f"  ⚠ {error}")
+
+
+def ask_direction(ask=input):
+    """Ask until the user types 1, 2 or 3, like the original. Returns the choice."""
+    while True:
+        choice = ask("Show [1] departures, [2] arrivals or [3] both: ").strip()
+        if choice in ("1", "2", "3"):
+            return choice
+        print("Type 1, 2 or 3.")
+
+
+def destination_overview(ask=input, wait=time.sleep):
+    """Option 7: cities with country and number of flights, e.g. "Frankfurt (5 flights) [Germany]"."""
+    airport = ask_airport(ask)
+    day, upcoming_only = ask_date(ask)
+    text_filter = ask("Filter by country or city (Enter = no filter): ")
+    choice = ask_direction(ask)
+    flights = []
+    if choice in ("1", "3"):
+        flights += api_client.get_departures(airport, day)
+    if choice == "3":
+        wait(REQUEST_PAUSE)  # two requests in a row: pause for the rate limit
+    if choice in ("2", "3"):
+        flights += api_client.get_arrivals(airport, day)
+    counts = count_destinations(prepare_flights(flights, upcoming_only))
+    lines = format_destinations(counts, load_city_country(), text_filter)
+    print(f"\nDestinations for {airport} on {day}:")
+    for line in lines:
+        print(f"  {line}")
+    if not lines:
+        print("  No destinations found.")
 
 
 # Menu choice -> function. New options are added here.
@@ -180,6 +212,7 @@ ACTIONS = {
     "4": odata_query,
     "5": heartbeat_check,
     "6": demo,
+    "7": destination_overview,
 }
 
 

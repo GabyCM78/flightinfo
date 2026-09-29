@@ -1,10 +1,14 @@
 """Tests for airport.py. input() is replaced by a fake, so no typing is needed."""
 
+import pytest
+
 import airport
 from airport import (
     ask_airport,
     ask_date,
+    ask_direction,
     demo,
+    destination_overview,
     heartbeat_check,
     main,
     odata_query,
@@ -284,4 +288,88 @@ def test_demo_pauses_between_requests(monkeypatch):
     use_fake_endpoints(monkeypatch)
     pauses = []
     demo(wait=pauses.append)
-    assert pauses == [airport.DEMO_PAUSE] * 3
+    assert pauses == [airport.REQUEST_PAUSE] * 3
+
+
+# --- option 7: destination overview -----------------------------------------
+
+def departure_to(city, status="SCH"):
+    """A small departure going to `city`."""
+    return {
+        "flightId": "D1",
+        "departureTime": {"scheduledUtc": "2026-09-29T10:00:00Z"},
+        "arrivalAirportEnglish": city,
+        "locationAndStatus": {"flightLegStatus": status},
+    }
+
+
+def arrival_from(city):
+    """A small arrival coming from `city`."""
+    return {
+        "flightId": "A1",
+        "arrivalTime": {"scheduledUtc": "2026-09-29T10:00:00Z"},
+        "departureAirportEnglish": city,
+        "locationAndStatus": {"flightLegStatus": "SCH"},
+    }
+
+
+def use_fake_directions(monkeypatch, departures=(), arrivals=()):
+    """Replace get_departures and get_arrivals. Returns a list of which ones were called."""
+    called = []
+
+    def fake_departures(code, day):
+        called.append("departures")
+        return list(departures)
+
+    def fake_arrivals(code, day):
+        called.append("arrivals")
+        return list(arrivals)
+
+    monkeypatch.setattr(airport.api_client, "get_departures", fake_departures)
+    monkeypatch.setattr(airport.api_client, "get_arrivals", fake_arrivals)
+    return called
+
+
+def test_ask_direction_asks_again_until_1_2_or_3(capsys):
+    ask, _ = fake_ask(["4", "2"])
+    assert ask_direction(ask) == "2"
+    assert capsys.readouterr().out.count("Type 1, 2 or 3.") == 1
+
+
+@pytest.mark.parametrize(
+    "choice, expected_calls",
+    [("1", ["departures"]), ("2", ["arrivals"]), ("3", ["departures", "arrivals"])],
+)
+def test_destination_overview_calls_the_right_endpoints(monkeypatch, choice, expected_calls):
+    called = use_fake_directions(monkeypatch)
+    ask, _ = fake_ask(["ARN", "today", "", choice])
+    destination_overview(ask, wait=lambda seconds: None)
+    assert called == expected_calls
+
+
+def test_destination_overview_both_pauses_once(monkeypatch):
+    use_fake_directions(monkeypatch)
+    pauses = []
+    ask, _ = fake_ask(["ARN", "today", "", "3"])
+    destination_overview(ask, wait=pauses.append)
+    assert pauses == [airport.REQUEST_PAUSE]
+
+
+def test_destination_overview_counts_and_skips_ghosts(monkeypatch, capsys):
+    use_fake_directions(
+        monkeypatch,
+        departures=[departure_to("Oslo"), departure_to("Oslo"), departure_to("Riga", status="DEL")],
+        arrivals=[arrival_from("Oslo")],
+    )
+    ask, _ = fake_ask(["ARN", "today", "", "3"])
+    destination_overview(ask, wait=lambda seconds: None)
+    out = capsys.readouterr().out
+    assert "Oslo (3 flights) [Norway]" in out
+    assert "Riga" not in out  # the only Riga flight was a ghost entry
+
+
+def test_destination_overview_filter_and_empty_result(monkeypatch, capsys):
+    use_fake_directions(monkeypatch, departures=[departure_to("Oslo")])
+    ask, _ = fake_ask(["ARN", "today", "germany", "1"])
+    destination_overview(ask, wait=lambda seconds: None)
+    assert "No destinations found." in capsys.readouterr().out
