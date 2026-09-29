@@ -303,6 +303,23 @@ My decisions (**assumptions** where the video does not show it):
   The time strings all have the same format (year first), so they sort correctly as text.
   The key `(text == "", text)` puts flights without a time last (`False` sorts before `True`).
   4 tests, including all 327 real arrivals in time order. Total: **135 passed in 0.39 s**.
+
+### The menu in `airport.py` (step 5c, part 1: main loop + options 1 and 2)
+- **`ACTIONS`** is a dict from menu choice to function (`{"1": arrivals, "2": departures}`), instead of a long
+  `if/elif` chain. A new option is one new line.
+- **All error handling in one place:** `try/except (ApiError, MissingApiKeyError)` around the chosen action.
+  Any API problem (wrong key, no network, 429 ...) is shown as `⚠ <message>` and the menu comes back.
+  Ctrl+C / Ctrl+Z (`KeyboardInterrupt` / `EOFError`) end the app with "Goodbye!" instead of a traceback.
+- `ask_airport` / `ask_date` ask again until the input is valid (like the original's `while True`).
+- `prepare_flights` removes ghost entries, removes past flights when the user typed `now`, and sorts by time.
+- `show_airport_flights(fetch, ...)` gets the fetch function as an argument, so arrivals and departures
+  share the same code.
+- `if __name__ == "__main__":` starts the menu only when the file is run, not when tests import it.
+- 9 new tests, e.g. an `ApiError` inside option 1 is shown as a message and the menu keeps running.
+- **First real run (2026-09-29):** `1` → `Visby` → `today` showed 10 arrivals sorted by time
+  (06:50 ... 22:30), 9 already landed. Fewer than 50, so no page question. `9` → "Unknown choice", `q` → "Goodbye!".
+- Small things seen: Visby sends the baggage belt as `"01"` (shown as it comes). `To` shows `VBY`
+  because arrivals have no name for their own airport per flight (could show "Visby (VBY)" later).
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
