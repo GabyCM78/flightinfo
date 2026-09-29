@@ -399,6 +399,24 @@ My decisions (**assumptions** where the video does not show it):
   menu, and the error handling in `main` protects this option too.
 - 7 new tests (e.g. choice 1 calls only departures, 3 calls both and pauses once, a ghost entry is not counted).
   Total: **176 passed in 0.24 s**.
+- **Real run (2026-09-29):** `7` → `ARN` → `today` → no filter → `1` gave Helsinki 20, Copenhagen 19, Oslo 15,
+  London 12, ... with every country filled in.
+
+### Problem: a green test that did not test what the app does
+- **What went wrong:** my test `test_top_destinations_from_arn` expected Oslo 20 and London 13, but the app showed
+  Oslo 15 and London 12. The test counted the raw mock data **including ghost entries**, while the app first removes
+  them with `prepare_flights`. Checked: Oslo 20 → 15 and London 13 → 12 without ghosts, exactly the app's numbers.
+- **Why it matters:** the test was green, but it tested something the user never sees.
+- **Solution:** the test now removes ghost entries first, like the app, so its expected list is the same as the real screen.
+- **Lesson:** a passing test is only useful if it tests the same path as the real program.
+
+### "What went badly" – collected for the documentation
+- `.gitignore` had leading spaces, so `.env` (my API key) would have been committed. Caught with `git status` before the first commit.
+- Windows Smart App Control blocked `pip.exe`, so installing failed until I used `python -m pip`.
+- I first believed the API date was UTC (from the documentation) and wrote a "UTC limitation" into my plan. Real data proved it was the Swedish date.
+- The first real `query()` test failed with 429 Too Many Requests.
+- The 400 message said "check airport and date" even when the error was in the user's OData filter.
+- A green test counted ghost entries, so it did not match what the app shows (see above).
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
