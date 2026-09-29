@@ -56,7 +56,9 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - Step 1 done: `.gitignore` (fixed leading spaces), `requirements.txt` (pinned),
   `pytest.ini`, `.env.example`, `config.py` (key verified to load).
   Git repo on `main`, pushed to https://github.com/GabyCM78/flightinfo (`.env` not tracked).
-- Next: step 2, `formatting.py`, starting with `fmt_time`.
+- Step 2 done: `formatting.py` with fmt_time, get_time_info, is_valid_flight,
+  is_upcoming (takes optional `now` for tests), format_flight, print_flight.
+- Next: step 3, pytest tests for formatting.py (run with `python -m pytest -v`).
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
@@ -110,7 +112,10 @@ Observations:
   `baggage` is `{}`, and `gate` is missing. Always use `.get()` with a default.
 - Departures probably mirror this with `from`, `departureTime`, `arrivalAirportEnglish`
   (not verified yet; check with a real response before relying on it).
-- `diIndicator`: I = International, D = Domestic.
+- `diIndicator`: I = International, D = Domestic, S = seen in data (probably Schengen, not verified).
+- Verified field names: gate is `locationAndStatus.gate` (often missing),
+  baggage belt is `baggage.baggageClaimUnit`, `flightLegStatusEnglish` is e.g. "Landed 23:39".
+- Mock data ARN 2026-09-28: 365 flights, 38 ghost entries (DEL), 3 cancelled (CAN) → 327 valid.
 - `flightLegStatus` `DEL` = deleted/cancelled flight.
 - ~365 flights per day at ARN, which is why the original shows 50 per page.
 
