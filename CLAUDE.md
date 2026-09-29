@@ -38,7 +38,8 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
    with the exact command to run, which file to open, and where to click in VS Code/GitHub.
    Say what I should see if it worked. Give me one step at a time and wait for me to say
    "done" (or show the error) before the next one.
-8. When I hit a problem, remind me to add it to `docs/notes.md` (problem + solution).
+8. Keep `docs/notes.md` up to date yourself: write problems + solutions, findings and design
+   decisions into it directly after each step (no need to ask first), and tell me what you added.
 
 ## My environment
 - **Windows + PowerShell** in VS Code. Give PowerShell commands, not Mac/Linux commands.
@@ -58,13 +59,15 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
   Git repo on `main`, pushed to https://github.com/GabyCM78/flightinfo (`.env` not tracked).
 - Step 2 done: `formatting.py` with fmt_time, get_time_info, is_valid_flight,
   is_upcoming (takes optional `now` for tests), format_flight, print_flight.
-- Next: step 3, pytest tests for formatting.py (run with `python -m pytest -v`).
+- Step 3 done: `tests/test_formatting.py`, 36 tests, all passing (`python -m pytest -v`).
+- Next: step 4, `api_client.py` (get + heartbeat first, then arrivals/departures, then query),
+  with tests that mock `requests`.
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
 - `requests` (HTTP), `python-dotenv` (reads `.env`), `pytest` (tests)
 - Standard library: `datetime`, `zoneinfo` (Swedish time), `json`
-- Note: on Windows, `zoneinfo` needs the `tzdata` package (`pip install tzdata`).
+- Note: on Windows, `zoneinfo` needs the `tzdata` package (included in `requirements.txt`).
 
 ## API facts (Swedavia FlightInfo v2) – verified
 - Base URL: `https://api.swedavia.se/flightinfo/v2`
@@ -116,7 +119,8 @@ Observations:
 - Verified field names: gate is `locationAndStatus.gate` (often missing),
   baggage belt is `baggage.baggageClaimUnit`, `flightLegStatusEnglish` is e.g. "Landed 23:39".
 - Mock data ARN 2026-09-28: 365 flights, 38 ghost entries (DEL), 3 cancelled (CAN) → 327 valid.
-- `flightLegStatus` `DEL` = deleted/cancelled flight.
+- `flightLegStatus`: `DEL` = deleted from the schedule (ghost entry), `CAN` = cancelled,
+  `SCH` = scheduled, `LAN` = landed.
 - ~365 flights per day at ARN, which is why the original shows 50 per page.
 
 ## How the original app printed a flight (from the video; menu text translated from Swedish)
@@ -142,12 +146,12 @@ flightinfo/
 ├── PLAN.md
 ├── README.md
 ├── requirements.txt
-├── pytest.ini              # pythonpath = .
+├── pytest.ini              # pythonpath = . and testpaths = tests
 ├── .env                    # SWEDAVIA_API_KEY=...  (never committed)
 ├── .env.example            # SWEDAVIA_API_KEY=your-key-here
 ├── .gitignore              # .venv/ .env __pycache__/ .pytest_cache/
 ├── config.py               # reads the key from .env, BASE_URL, AIRPORTS
-├── formatting.py           # fmt_time, is_valid_flight, is_upcoming, print_flight
+├── formatting.py           # fmt_time, get_time_info, is_valid_flight, is_upcoming, format_flight, print_flight
 ├── api_client.py           # get(), get_arrivals(), get_departures(), query(), heartbeat()
 ├── destinations.py         # city → country, destination overview
 ├── city_country.json
@@ -156,7 +160,7 @@ flightinfo/
 │   ├── heartbeat_sample.txt   # exists
 │   └── arrivals_sample.json   # exists
 ├── tests/
-│   ├── test_formatting.py
+│   ├── test_formatting.py  # exists, 36 tests
 │   ├── test_api_client.py  # mocks requests, no real calls
 │   └── test_destinations.py
 └── docs/

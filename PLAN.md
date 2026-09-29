@@ -48,7 +48,7 @@ Förstå: varför UTC → svensk tid (`zoneinfo`), vad en "spökpost" är.
 ## Steg 3 – Tester (tis)
 > "Steg 3. Skriv pytest-tester för formatting.py. Förklara varje test. Inga riktiga API-anrop."
 
-- Kör `pytest -v`. Alla tester ska vara gröna.
+- Kör `python -m pytest -v` (inte bara `pytest`, Windows blockerar `pytest.exe`). Alla tester ska vara gröna.
 - Testa gärna specialfall: tom tid, "N/A", sommartid (CEST) och vintertid (CET).
 
 **Commit:** `Add tests for formatting helpers`

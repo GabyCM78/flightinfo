@@ -47,7 +47,8 @@ Then I worked backwards from the output to the data, to guess the inputs and the
   the same as Swedavia's own status text "Landed 23:39".
 
 ### Tools chosen
-- Python 3.14, `requests`, `python-dotenv`, `pytest`
+- Python 3.14, `requests`, `python-dotenv`, `pytest`, `tzdata` (time zone data, which Windows does not have built in)
+- Versions are pinned with `==` in `requirements.txt`, so everyone gets the same setup.
 - VS Code + Claude as a coding assistant (asks before every change)
 - Git + GitHub
 
@@ -114,6 +115,20 @@ or using up API requests.
 - **Differences from the original output:** `–` for every missing value (the original mixed `N/A` and `–`),
   and `To` shows the IATA code when the airport name is missing (the original showed `(ARN)`).
 
+### Tests for `formatting.py` (step 3)
+- `tests/test_formatting.py`: **36 tests, all passing in 0.22 s** (`python -m pytest -v`).
+- No real API calls. Two kinds of test data:
+  - small handmade flights (`make_flight(...)`), one test per rule, so it is clear what is tested;
+  - the saved mock data as a reality check: 365 flights → 327 valid, 146 upcoming at 12:00 UTC,
+    and flight JTD664 printed with all fields.
+- `is_upcoming` is tested with a fixed time (`NOON_UTC`), so the result is the same whenever the tests run.
+- Edge cases covered: summer/winter time, the clock change day (25 Oct 2026: 00:30 UTC → 02:30 CEST,
+  01:30 UTC → 02:30 CET), time past midnight, missing or broken values, input that is not a dict.
+- pytest features used: `assert`, `@pytest.mark.parametrize` (same test, many inputs),
+  `@pytest.fixture` (loads the mock file), `capsys` (captures `print()` output).
+- `pytest.ini` sets `pythonpath = .` so the tests can import modules from the project root,
+  and `testpaths = tests` so pytest only looks in `tests/`.
+
 ---
 
 ## Phase 3 – Completion
@@ -126,7 +141,7 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest, no real API calls |
+| Tests | None visible | pytest (36 tests so far), no real API calls |
 | Structure | Mostly one large file | Small modules, one job each |
 
 ---
