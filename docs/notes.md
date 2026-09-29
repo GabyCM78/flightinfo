@@ -18,6 +18,9 @@ Then I worked backwards from the output to the data, to guess the inputs and the
 - Menu: 1 Arrivals, 2 Departures, 3 Search flight, 4 OData query, 5 HeartBeat, 6 Demo, q Quit.
 - Shows 50 flights per page: [Enter] next page, [a] show all, [q] back.
 - Converts UTC to Swedish time (CET/CEST).
+- The destination overview was a separate script (`destinationer.py`) that ran once and exited.
+- **The video never showed options 3 and 6 running, so I based them on the menu text and documented my
+  assumptions** (see "Step 5 – menu: what the video showed, and my assumptions" below).
 
 ### Weaknesses I noticed in the original
 - The **API key was hardcoded** in the source code (visible in the video).
@@ -235,6 +238,34 @@ Checked with a small exploration script (outside the project, `count=5`, the key
   So the 429 was temporary (several requests close together earlier), and no code change was needed.
   The message "Wait a moment and try again" was the right advice.
 - This also proves that paging works against the real API (page 2 was fetched, then the loop stopped).
+
+### Step 5 – menu: what the video showed, and my assumptions
+What I saw in the original (menu text translated from Swedish):
+- Airport question: "Enter IATA code or city name (e.g. ARN or Visby)", with the list of the 10 airports shown first.
+  An unknown airport gave "⚠ Unknown airport, try again" and asked again (a `while True` loop).
+- Date question: "Enter date (YYYY-MM-DD / now / today / tomorrow / yesterday)".
+- ARN showed "Showing 50/220" and later "50/217" while the API had ~365 flights, and the code had both
+  `_is_valid_flight` and `_is_upcoming`. The number went down during the recording.
+- Menu 3 was "Search for a specific flight number", menu 6 was "Demonstrate all endpoints automatically".
+  The video never shows these two being run.
+- The destination overview was a **separate script** (`destinationer.py`) that ran once and exited:
+  choose airport → date → optional filter (country or city) → prints cities with country and number of flights,
+  e.g. "Frankfurt (5st) [Germany]".
+
+My decisions (**assumptions** where the video does not show it):
+- **Showing flights:** always hide ghost entries (`is_valid_flight`). When the user types `now`, also hide flights
+  that have already landed/departed (`is_upcoming`). _Assumption_, based on 220 < 365 and the number going down.
+- **Menu 3, search flight:** ask for flight number + airport + date and build the `/query` filter with `build_filter()`.
+  _Assumption_: the video does not show which inputs were needed.
+- **Menu 6, demo:** call all four endpoints in a row (heartBeat, arrivals, departures, query) with fixed example
+  values and show a short result from each. _Assumption_: the video does not show it running.
+- **Destination overview:** menu option **7** instead of a separate script. Improvement: everything in one place.
+- **Language:** English menu texts, the same as the code, error messages and docs (the original was in Swedish).
+- **UTC limitation (accepted):** the API date is a UTC date. Flights between 00:00 and 02:00 Swedish time
+  (summer) belong to the next UTC date. I document this instead of making two requests per search.
+- **Structure:** input parsing goes in its own module, `user_input.py` (testable, "validate at the edge").
+  The airport is checked against `AIRPORTS` before any API call. Flight numbers may only contain letters and digits,
+  so user input cannot break the OData filter (e.g. `SK1' or airport eq 'GOT`).
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
@@ -252,6 +283,7 @@ _(fill in later)_
 | Tests | None visible | pytest (78 tests so far), no real API calls |
 | Paging in OData query | Read `continuationToken` (wrong case), so page 2 was probably never fetched | Reads `continuationtoken`, stops on missing token **or** a non-full page, max 5 pages |
 | Structure | Mostly one large file | Small modules, one job each |
+| Destination overview | Separate script (`destinationer.py`), runs once and exits | Menu option 7, everything in one place |
 
 ---
 
