@@ -11,7 +11,7 @@ class ApiError(Exception):
 
 # Clear messages for the HTTP status codes we expect.
 STATUS_MESSAGES = {
-    400: "The API did not accept the request (400). Check the airport code and date.",
+    400: "The API did not accept the request (400). Check the airport code, date or filter.",
     401: "The API key was rejected (401). Check SWEDAVIA_API_KEY in .env.",
     403: "Access denied (403). Check that your key is subscribed to FlightInfo.",
     404: "Nothing found (404). Check the airport code and date.",
@@ -52,7 +52,7 @@ def heartbeat():
 
 
 def _get_flights(direction, iata, day):
-    """Fetch "arrivals" or "departures" for one airport and one day (UTC). Returns a list."""
+    """Fetch "arrivals" or "departures" for one airport and one day (Swedish local date). Returns a list."""
     data = get(f"/{iata.upper()}/{direction}/{day.isoformat()}")
     if not isinstance(data, dict):
         raise ApiError("The API answered with unexpected data.")
@@ -60,12 +60,12 @@ def _get_flights(direction, iata, day):
 
 
 def get_arrivals(iata, day):
-    """Return all arrivals at an airport on a date (a datetime.date, in UTC)."""
+    """Return all arrivals at an airport on a date (a datetime.date, Swedish local date)."""
     return _get_flights("arrivals", iata, day)
 
 
 def get_departures(iata, day):
-    """Return all departures from an airport on a date (a datetime.date, in UTC)."""
+    """Return all departures from an airport on a date (a datetime.date, Swedish local date)."""
     return _get_flights("departures", iata, day)
 
 

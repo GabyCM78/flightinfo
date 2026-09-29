@@ -181,7 +181,8 @@ or using up API requests.
 ### `get_arrivals` / `get_departures` (step 4, part 2)
 - Both call one shared helper, `_get_flights(direction, iata, day)`, because the URLs only differ in one word.
 - They take a `datetime.date`, not text. The menu will turn user input ("today", "2026-09-29") into a date
-  ("validate at the edge"), so the API client always gets a correct date. The API date is in **UTC**.
+  ("validate at the edge"), so the API client always gets a correct date. ~~The API date is in UTC.~~
+  The API date is the **Swedish local date** (found in step 5c, see below).
 - They return only the list of flights. Missing `flights` → `[]`. A response that is not a dict → `ApiError`
   (an empty list would hide a real problem).
 - 6 new tests with the fake `requests.get`. Total: **62 passed in 0.44 s**.
@@ -261,8 +262,8 @@ My decisions (**assumptions** where the video does not show it):
   values and show a short result from each. _Assumption_: the video does not show it running.
 - **Destination overview:** menu option **7** instead of a separate script. Improvement: everything in one place.
 - **Language:** English menu texts, the same as the code, error messages and docs (the original was in Swedish).
-- **UTC limitation (accepted):** the API date is a UTC date. Flights between 00:00 and 02:00 Swedish time
-  (summer) belong to the next UTC date. I document this instead of making two requests per search.
+- ~~**UTC limitation (accepted):** the API date is a UTC date. Flights between 00:00 and 02:00 Swedish time
+  (summer) belong to the next UTC date.~~ **Wrong, see "Finding: the API date is the Swedish date" below.**
 - **Structure:** input parsing goes in its own module, `user_input.py` (testable, "validate at the edge").
   The airport is checked against `AIRPORTS` before any API call. Flight numbers may only contain letters and digits,
   so user input cannot break the OData filter (e.g. `SK1' or airport eq 'GOT`).
@@ -320,6 +321,48 @@ My decisions (**assumptions** where the video does not show it):
   (06:50 ... 22:30), 9 already landed. Fewer than 50, so no page question. `9` → "Unknown choice", `q` → "Goodbye!".
 - Small things seen: Visby sends the baggage belt as `"01"` (shown as it comes). `To` shows `VBY`
   because arrivals have no name for their own airport per flight (could show "Visby (VBY)" later).
+
+### Menu options 3, 4 and 5 (step 5c, part 2)
+- **3 Search flight:** asks for flight number (again until valid), airport and date, builds the filter with
+  `build_filter(..., flight_id=...)` **without** `flightType`, so it finds both arrivals and departures.
+- **4 OData query:** shows the fields and an example, then sends the user's filter unchanged (an "expert"
+  feature, like the original). The user runs it with their own key, so this is not a security risk.
+  An empty filter makes no request.
+- **5 HeartBeat:** `✅ The API is up (IsAlive).` or a warning.
+- 6 new tests. One sends `SK1' or airport eq 'GOT` through the whole menu flow and checks that it is rejected.
+- **Real run (2026-09-29):**
+  - 5 → `✅ The API is up (IsAlive).`
+  - 3 → `SK085`, `Visby`, `today` found the flight. **Verified:** searching with `flightId eq 'SK085'` works.
+    The data is live: the estimated time was 22:34 an hour earlier and 22:19 now.
+  - 4 → `this is wrong` → `⚠ The API did not accept the request (400). Check the airport code and date.`
+    and the menu came back. **Problem:** the message talks about airport and date, but the error was in the filter.
+    **Solution:** the 400 message is now "Check the airport code, date or filter." The test compares with
+    `STATUS_MESSAGES[400]`, not a fixed text, so it did not need to change.
+
+### Menu option 6: demo (step 5c, part 3)
+- Calls all four endpoints in a row (heartBeat, ARN arrivals today, ARN departures today, `/query` for the same
+  departures) and prints one short line per step, e.g. `✅ 327 flights, first: SK1 (04:50 UTC → 06:50 CEST)`.
+  The query step should give the same number as the departures step: a small consistency check.
+- **2 seconds pause** between requests (`DEMO_PAUSE`), because several quick requests gave a 429 before.
+  The pause function is an argument, `wait=time.sleep`, so tests pass a fake and do not really wait.
+- **Each step has its own `try/except`:** if one step fails, it shows `⚠ <message>` and the demo continues
+  with the next step. This shows that the app survives errors.
+- `steps` is a list of `(title, lambda: ...)` pairs; a `lambda` is a small "recipe" that runs only when called,
+  which makes it possible to put `try` around each step.
+- `summarize(flights)` counts the valid flights and shows the earliest one.
+- 5 new tests (summary, all steps OK, an error in step 2 does not stop steps 3–4, exactly 3 pauses).
+- **Real run (2026-09-29):** all four steps ✅. HeartBeat `IsAlive`; arrivals 300 flights; departures 299 flights,
+  first FR4616; `/query` for the same departures: **also 299, first FR4616**. The two endpoints agree.
+
+### Finding: the API date is the Swedish date, not UTC
+- **Clue:** in the demo, the first arrival for **2026-09-29** was SK1428 at **22:20 UTC**, which is still the 28th in UTC.
+- **Check with the mock data:** arrivals for 2026-09-28 go from `2026-09-27T22:00Z` (= 00:00 Swedish time on the 28th)
+  to `2026-09-28T21:55Z` (= 23:55 Swedish time). So the file covers exactly **one Swedish day**, 00:00–23:59.
+  With a UTC date it would have gone from `...28T00:00Z` to `...28T23:59Z`.
+- **Conclusion:** the date in `/{airport}/arrivals/{date}` is the Swedish local date. My earlier note
+  ("date in UTC", from how I read the documentation) was wrong. The "UTC limitation" does not exist.
+- My `parse_date` already uses the Swedish date for "today", so the app was right without a change.
+- Lesson: **check assumptions against real data**. The documentation (or my reading of it) was not enough.
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---

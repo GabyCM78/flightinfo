@@ -74,7 +74,10 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
   ("Step 5 – menu"). English menu texts; Swedish date words also accepted.
 - 5a done: `user_input.py` with `parse_airport`, `parse_date` (returns `(date, upcoming_only)`, "now" → True),
   `parse_flight_id` (A–Z/0–9 only); `build_filter` in `api_client.py`. 124 tests passing.
-- Next: 5b, `show_flights()` in `airport.py`.
+- 5b done: `show_flights()` (50 per page) + `sort_by_time()` in formatting.py.
+- 5c done: menu in `airport.py` with options 1–6 + q (`ACTIONS` dict, all errors caught in `main`,
+  demo with `DEMO_PAUSE = 2` s between requests). All options tried against the real API.
+- Next: 5d, `destinations.py` + `city_country.json` as menu option 7. Then step 6 (README, DOCUMENTATION.md).
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
@@ -87,7 +90,8 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - Headers: `Ocp-Apim-Subscription-Key: <key>` and `Accept: application/json`
 - `GET /heartBeat` → `200 OK`, body is the JSON **string** `"IsAlive"` (not an object).
   Optional query param `evaluationId` (we do not use it). Note the capital B.
-- `GET /{IATA}/arrivals/{yyyy-mm-dd}` and `GET /{IATA}/departures/{yyyy-mm-dd}` (date in UTC)
+- `GET /{IATA}/arrivals/{yyyy-mm-dd}` and `GET /{IATA}/departures/{yyyy-mm-dd}` (date = **Swedish local date**,
+  verified: arrivals for 2026-09-28 go from 27T22:00Z to 28T21:55Z, i.e. 00:00–23:59 Swedish time)
 - `GET /query?filter=...&count=...&continuationtoken=...` (max 1000 per page; `requests` URL-encodes the token).
   Filter fields: `airport`, `flightType` ('A'/'D'), `scheduled` (**YYMMDD**, e.g. '260929'), `flightId`;
   operators `eq`, `and`, `or`, parentheses. Response: `{"flights": [...], "continuationtoken": "..."}`.

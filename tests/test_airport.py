@@ -1,7 +1,18 @@
 """Tests for airport.py. input() is replaced by a fake, so no typing is needed."""
 
 import airport
-from airport import ask_airport, ask_date, main, prepare_flights, show_flights
+from airport import (
+    ask_airport,
+    ask_date,
+    demo,
+    heartbeat_check,
+    main,
+    odata_query,
+    prepare_flights,
+    search_flight,
+    show_flights,
+    summarize,
+)
 from api_client import ApiError
 from config import MissingApiKeyError
 
@@ -166,3 +177,111 @@ def test_main_shows_missing_key_error(monkeypatch, capsys):
     ask, _ = fake_ask(["2", "GOT", "today", "q"])
     main(ask)
     assert "⚠ SWEDAVIA_API_KEY is missing." in capsys.readouterr().out
+
+
+# --- options 3, 4 and 5 -----------------------------------------------------
+
+def use_fake_query(monkeypatch, flights=()):
+    """Replace api_client.query. Returns a list with every filter it was called with."""
+    filters = []
+
+    def fake_query(filter_text):
+        filters.append(filter_text)
+        return list(flights)
+
+    monkeypatch.setattr(airport.api_client, "query", fake_query)
+    return filters
+
+
+def test_search_flight_builds_the_filter(monkeypatch):
+    filters = use_fake_query(monkeypatch)
+    ask, _ = fake_ask(["sk 532", "ARN", "2026-09-29"])
+    search_flight(ask)
+    assert filters == ["airport eq 'ARN' and scheduled eq '260929' and flightId eq 'SK532'"]
+
+
+def test_search_flight_asks_again_for_invalid_flight_id(monkeypatch, capsys):
+    use_fake_query(monkeypatch)
+    ask, _ = fake_ask(["SK1' or airport eq 'GOT", "SK1", "ARN", "2026-09-29"])
+    search_flight(ask)
+    assert capsys.readouterr().out.count("Invalid flight number") == 1
+
+
+def test_odata_query_sends_the_filter_unchanged(monkeypatch, capsys):
+    filters = use_fake_query(monkeypatch, [flight("SK1", "2026-09-29T10:00:00Z")])
+    ask, _ = fake_ask(["airport eq 'VBY' and flightType eq 'A'"])
+    odata_query(ask)
+    assert filters == ["airport eq 'VBY' and flightType eq 'A'"]
+    assert "[1] → SK1" in capsys.readouterr().out
+
+
+def test_odata_query_empty_filter_makes_no_call(monkeypatch, capsys):
+    filters = use_fake_query(monkeypatch)
+    ask, _ = fake_ask(["   "])
+    odata_query(ask)
+    assert filters == []
+    assert "No filter given" in capsys.readouterr().out
+
+
+def test_heartbeat_check_up(monkeypatch, capsys):
+    monkeypatch.setattr(airport.api_client, "heartbeat", lambda: True)
+    heartbeat_check()
+    assert "✅ The API is up" in capsys.readouterr().out
+
+
+def test_heartbeat_check_not_alive(monkeypatch, capsys):
+    monkeypatch.setattr(airport.api_client, "heartbeat", lambda: False)
+    heartbeat_check()
+    assert "not with IsAlive" in capsys.readouterr().out
+
+
+# --- option 6: demo ---------------------------------------------------------
+
+def test_summarize_empty_list():
+    assert summarize([]) == "0 flights"
+
+
+def test_summarize_skips_ghosts_and_shows_the_earliest_flight():
+    flights = [
+        flight("LATE", "2026-09-29T20:00:00Z"),
+        flight("GHOST", "2026-09-29T01:00:00Z", status="DEL"),
+        flight("EARLY", "2026-09-29T06:00:00Z"),
+    ]
+    assert summarize(flights) == "2 flights, first: EARLY (06:00 UTC → 08:00 CEST)"
+
+
+def use_fake_endpoints(monkeypatch, arrivals_error=None):
+    """Replace all four API functions. If arrivals_error is given, get_arrivals raises it."""
+    def fake_arrivals(code, day):
+        if arrivals_error:
+            raise arrivals_error
+        return [flight("SK1", "2026-09-29T10:00:00Z")]
+
+    monkeypatch.setattr(airport.api_client, "heartbeat", lambda: True)
+    monkeypatch.setattr(airport.api_client, "get_arrivals", fake_arrivals)
+    monkeypatch.setattr(airport.api_client, "get_departures", lambda code, day: [])
+    monkeypatch.setattr(airport.api_client, "query", lambda filter_text: [])
+
+
+def test_demo_runs_all_four_steps(monkeypatch, capsys):
+    use_fake_endpoints(monkeypatch)
+    demo(wait=lambda seconds: None)
+    out = capsys.readouterr().out
+    assert out.count("✅") == 4
+    assert "✅ IsAlive" in out
+    assert "[4/4] GET /query" in out
+
+
+def test_demo_keeps_going_after_an_error(monkeypatch, capsys):
+    use_fake_endpoints(monkeypatch, arrivals_error=ApiError("Too many requests (429)."))
+    demo(wait=lambda seconds: None)
+    out = capsys.readouterr().out
+    assert "⚠ Too many requests (429)." in out
+    assert out.count("✅") == 3  # steps 1, 3 and 4 still ran
+
+
+def test_demo_pauses_between_requests(monkeypatch):
+    use_fake_endpoints(monkeypatch)
+    pauses = []
+    demo(wait=pauses.append)
+    assert pauses == [airport.DEMO_PAUSE] * 3
