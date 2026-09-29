@@ -13,6 +13,7 @@ from formatting import (
     is_upcoming,
     is_valid_flight,
     print_flight,
+    sort_by_time,
 )
 
 MOCK_DIR = Path(__file__).parent.parent / "mock_data"
@@ -201,3 +202,43 @@ def test_format_departure_uses_arrival_airport_as_to(departure_flights):
 def test_format_departure_has_no_baggage(departure_flights):
     flight = next(f for f in departure_flights if is_valid_flight(f))
     assert "Baggage  : –" in format_flight(flight, 1)
+
+
+# --- sort_by_time -----------------------------------------------------------
+
+def ids(flights):
+    """The flight ids in order, e.g. ["SK1", "SK2"]."""
+    return [flight["flightId"] for flight in flights]
+
+
+def test_sort_by_time_puts_earliest_first():
+    flights = [
+        {"flightId": "LATE", "arrivalTime": {"scheduledUtc": "2026-09-28T20:00:00Z"}},
+        {"flightId": "EARLY", "arrivalTime": {"scheduledUtc": "2026-09-28T06:00:00Z"}},
+        {"flightId": "MIDDAY", "arrivalTime": {"scheduledUtc": "2026-09-28T12:00:00Z"}},
+    ]
+    assert ids(sort_by_time(flights)) == ["EARLY", "MIDDAY", "LATE"]
+
+
+def test_sort_by_time_puts_flights_without_time_last():
+    flights = [
+        {"flightId": "NO_TIME"},
+        {"flightId": "HAS_TIME", "departureTime": {"scheduledUtc": "2026-09-28T12:00:00Z"}},
+    ]
+    assert ids(sort_by_time(flights)) == ["HAS_TIME", "NO_TIME"]
+
+
+def test_sort_by_time_does_not_change_the_original_list():
+    flights = [
+        {"flightId": "B", "arrivalTime": {"scheduledUtc": "2026-09-28T20:00:00Z"}},
+        {"flightId": "A", "arrivalTime": {"scheduledUtc": "2026-09-28T06:00:00Z"}},
+    ]
+    sort_by_time(flights)
+    assert ids(flights) == ["B", "A"]
+
+
+def test_mock_arrivals_are_in_time_order_after_sorting(mock_flights):
+    valid = [flight for flight in mock_flights if is_valid_flight(flight)]
+    times = [flight["arrivalTime"]["scheduledUtc"] for flight in sort_by_time(valid)]
+    assert times == sorted(times)
+    assert len(times) == 327

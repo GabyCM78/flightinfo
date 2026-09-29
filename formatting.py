@@ -107,3 +107,13 @@ def format_flight(flight, number):
 def print_flight(flight, number):
     """Print one flight. The text is built by format_flight so it can be tested."""
     print(format_flight(flight, number))
+
+
+def sort_by_time(flights):
+    """Return a new list sorted by scheduled time (earliest first). Flights without a time go last."""
+
+    def sort_key(flight):
+        text = get_time_info(flight).get("scheduledUtc") or ""
+        return (text == "", text)
+
+    return sorted(flights, key=sort_key)

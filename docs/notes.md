@@ -298,6 +298,11 @@ My decisions (**assumptions** where the video does not show it):
 - Tried it by hand with the mock data (327 valid arrivals): it looks like the original.
 - **Observation:** the flights come in the order the API sends them, **not sorted by time**
   (e.g. [1] at 19:45, [73] at 00:05, [90] at 06:55). I do not know if the original sorted them.
+- **Decision / improvement:** sort by **scheduled** time with `sort_by_time()` in `formatting.py`, like a departure
+  board (the estimated time changes, so flights would jump around). `sorted(..., key=...)` returns a new list.
+  The time strings all have the same format (year first), so they sort correctly as text.
+  The key `(text == "", text)` puts flights without a time last (`False` sorts before `True`).
+  4 tests, including all 327 real arrivals in time order. Total: **135 passed in 0.39 s**.
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
@@ -312,7 +317,8 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest (124 tests so far), no real API calls |
+| Tests | None visible | pytest (135 tests so far), no real API calls |
+| Flight list order | Order from the API (not sorted, as far as I can tell) | Sorted by scheduled time |
 | Paging in OData query | Read `continuationToken` (wrong case), so page 2 was probably never fetched | Reads `continuationtoken`, stops on missing token **or** a non-full page, max 5 pages |
 | Structure | Mostly one large file | Small modules, one job each |
 | Destination overview | Separate script (`destinationer.py`), runs once and exits | Menu option 7, everything in one place |
