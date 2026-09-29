@@ -174,6 +174,26 @@ or using up API requests.
   ("During handling of the above exception, another exception occurred"). Read it from the bottom up.
   Without my error handling, the user would only see this cryptic chain.
 - Timeout could not easily be forced against the real API, so it is covered by the mocked test only.
+
+### `get_arrivals` / `get_departures` (step 4, part 2)
+- Both call one shared helper, `_get_flights(direction, iata, day)`, because the URLs only differ in one word.
+- They take a `datetime.date`, not text. The menu will turn user input ("today", "2026-09-29") into a date
+  ("validate at the edge"), so the API client always gets a correct date. The API date is in **UTC**.
+- They return only the list of flights. Missing `flights` → `[]`. A response that is not a dict → `ApiError`
+  (an empty list would hide a real problem).
+- 6 new tests with the fake `requests.get`. Total: **62 passed in 0.44 s**.
+
+### Findings: real departures (ARN, 2026-09-29, saved as `mock_data/departures_sample.json`)
+- My guess was right: the top level has `from` (not `to`), each flight has `departureTime` and `arrivalAirportEnglish`.
+- 342 flights: 146 `ACT` ("Departed", all with `actualUtc`), 98 `SCH`, 53 `SEQ` ("Estimated 16:45" etc.),
+  43 `DEL` (ghost entries), 2 `CAN`. → 299 valid departures.
+- Departures have **no `baggage`**. Instead they have `checkIn` (`checkInDeskFrom`/`checkInDeskTo`) and gate info
+  (`gate`, `gateOpenUtc`, `gateCloseUtc`, `gateActionEnglish` e.g. "Gate closed").
+- Strange: 53 flights say "Estimated ..." in the status text, but only 4 have an `estimatedUtc` field. Not explained yet.
+- `formatting.py` works for departures without changes: `get_time_info` finds `departureTime`,
+  `From` falls back to `ARN` from `flightLegIdentifier`, and `Baggage` shows `–`.
+- 4 new tests with the real departures data prove this (299 valid, the 146 departed flights are not
+  upcoming, `From : ARN`, `To` = destination, `Baggage : –`). Total: **66 passed in 0.27 s**.
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
@@ -188,7 +208,7 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest (56 tests so far), no real API calls |
+| Tests | None visible | pytest (66 tests so far), no real API calls |
 | Structure | Mostly one large file | Small modules, one job each |
 
 ---
@@ -196,3 +216,4 @@ _(fill in later)_
 ## Ideas (maybe later)
 - ~~Option to hide deleted flights (`DEL`).~~ Done: `is_valid_flight` hides them by default.
 - Show "data updated X min ago" using the `last-modified-inminutes` header.
+- For departures, show check-in desks (`checkIn`) and gate open/close times instead of the empty `Baggage` line.

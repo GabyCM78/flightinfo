@@ -15,7 +15,9 @@ from formatting import (
     print_flight,
 )
 
-MOCK_FILE = Path(__file__).parent.parent / "mock_data" / "arrivals_sample.json"
+MOCK_DIR = Path(__file__).parent.parent / "mock_data"
+ARRIVALS_FILE = MOCK_DIR / "arrivals_sample.json"
+DEPARTURES_FILE = MOCK_DIR / "departures_sample.json"
 
 # A fixed "now", so the is_upcoming tests give the same result every time.
 NOON_UTC = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
@@ -24,7 +26,14 @@ NOON_UTC = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
 @pytest.fixture
 def mock_flights():
     """All flights from the saved ARN arrivals response (2026-09-28)."""
-    with open(MOCK_FILE, encoding="utf-8-sig") as file:
+    with open(ARRIVALS_FILE, encoding="utf-8-sig") as file:
+        return json.load(file)["flights"]
+
+
+@pytest.fixture
+def departure_flights():
+    """All flights from the saved ARN departures response (2026-09-29)."""
+    with open(DEPARTURES_FILE, encoding="utf-8-sig") as file:
         return json.load(file)["flights"]
 
 
@@ -163,3 +172,32 @@ def test_print_flight_prints_the_formatted_text(capsys):
     print_flight(flight, 3)
     printed = capsys.readouterr().out
     assert printed == format_flight(flight, 3) + "\n"
+
+
+# --- departures (real data) -------------------------------------------------
+
+def test_departures_mock_has_299_valid_flights(departure_flights):
+    valid = [flight for flight in departure_flights if is_valid_flight(flight)]
+    assert len(departure_flights) == 342
+    assert len(valid) == 299  # 43 ghost entries (DEL) are removed
+
+
+def test_departed_flights_are_not_upcoming(departure_flights):
+    departed = [
+        flight for flight in departure_flights
+        if flight["locationAndStatus"]["flightLegStatus"] == "ACT"
+    ]
+    assert len(departed) == 146
+    assert not any(is_upcoming(flight, now=NOON_UTC) for flight in departed)
+
+
+def test_format_departure_uses_arrival_airport_as_to(departure_flights):
+    flight = next(f for f in departure_flights if is_valid_flight(f))
+    text = format_flight(flight, 1)
+    assert "From : ARN" in text
+    assert f"To   : {flight['arrivalAirportEnglish']}" in text
+
+
+def test_format_departure_has_no_baggage(departure_flights):
+    flight = next(f for f in departure_flights if is_valid_flight(f))
+    assert "Baggage  : –" in format_flight(flight, 1)

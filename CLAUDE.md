@@ -63,8 +63,11 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - Step 4 part 1 done: `api_client.py` with `ApiError`, `get()` (timeout, clear error messages)
   and `heartbeat()` (real call returned True). `tests/test_api_client.py` uses monkeypatch +
   `FakeResponse`, fake key "test-key". 56 tests passing.
-- Next: check real error cases (wrong key, airport XXX, no network), then part 2
-  (`get_arrivals`/`get_departures`), then part 3 (`query`).
+- Real error cases checked: wrong key → 401, airport XXX → 400, no network → ConnectionError.
+- Step 4 part 2 done: `get_arrivals`/`get_departures` (take a `datetime.date`, return the flights list).
+  Real departures saved as `mock_data/departures_sample.json`, and `test_formatting.py` has
+  4 tests using it. 66 tests passing.
+- Next: step 4 part 3, `query()` with `continuationtoken`.
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
@@ -116,8 +119,11 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 Observations:
 - **Fields can be missing or empty**: here only `scheduledUtc` exists (no `estimatedUtc`/`actualUtc`),
   `baggage` is `{}`, and `gate` is missing. Always use `.get()` with a default.
-- Departures probably mirror this with `from`, `departureTime`, `arrivalAirportEnglish`
-  (not verified yet; check with a real response before relying on it).
+- Departures (verified, `mock_data/departures_sample.json`, ARN 2026-09-29, 342 flights): top level `from`,
+  flights have `departureTime` and `arrivalAirportEnglish` (no `departureAirportEnglish`), **no `baggage`**
+  but `checkIn` (`checkInDeskFrom`/`To`) and gate info (`gateOpenUtc`, `gateCloseUtc`, `gateActionEnglish`).
+  Extra statuses: `ACT` = Departed, `SEQ` = "Estimated HH:MM" (only 4 of 53 have `estimatedUtc`).
+  43 DEL → 299 valid.
 - `diIndicator`: I = International, D = Domestic, S = seen in data (probably Schengen, not verified).
 - Verified field names: gate is `locationAndStatus.gate` (often missing),
   baggage belt is `baggage.baggageClaimUnit`, `flightLegStatusEnglish` is e.g. "Landed 23:39".
@@ -161,7 +167,8 @@ flightinfo/
 ├── airport.py              # main menu (entry point)
 ├── mock_data/
 │   ├── heartbeat_sample.txt   # exists
-│   └── arrivals_sample.json   # exists
+│   ├── arrivals_sample.json   # exists
+│   └── departures_sample.json # exists
 ├── tests/
 │   ├── test_formatting.py  # exists, 36 tests
 │   ├── test_api_client.py  # mocks requests, no real calls
