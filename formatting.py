@@ -74,3 +74,36 @@ def is_upcoming(flight, now=None):
     if now is None:
         now = datetime.now(timezone.utc)
     return flight_time >= now
+
+
+def format_flight(flight, number):
+    """Return one flight as a text block, in the same layout as the original app."""
+    airline = flight.get("airlineOperator") or {}
+    status = flight.get("locationAndStatus") or {}
+    baggage = flight.get("baggage") or {}
+    leg = flight.get("flightLegIdentifier") or {}
+    times = get_time_info(flight)
+
+    # Airport names can be missing, so fall back to the IATA code.
+    from_airport = flight.get("departureAirportEnglish") or leg.get("departureAirportIata") or MISSING
+    to_airport = flight.get("arrivalAirportEnglish") or leg.get("arrivalAirportIata") or MISSING
+
+    lines = [
+        f"[{number}] → {flight.get('flightId') or MISSING} | "
+        f"{airline.get('name') or MISSING} ({airline.get('iata') or MISSING})",
+        f"  From : {from_airport}",
+        f"  To   : {to_airport}",
+        f"  Status   : {status.get('flightLegStatusEnglish') or MISSING}",
+        f"  Terminal : {status.get('terminal') or MISSING}   Gate: {status.get('gate') or MISSING}",
+        f"  Baggage  : {baggage.get('baggageClaimUnit') or MISSING}",
+        f"  Sched : {fmt_time(times.get('scheduledUtc'))}",
+        f"  Est   : {fmt_time(times.get('estimatedUtc'))}",
+        f"  Actual: {fmt_time(times.get('actualUtc'))}",
+        f"  D/I   : {flight.get('diIndicator') or MISSING}",
+    ]
+    return "\n".join(lines)
+
+
+def print_flight(flight, number):
+    """Print one flight. The text is built by format_flight so it can be tested."""
+    print(format_flight(flight, number))
