@@ -1,11 +1,15 @@
 """Tests for api_client.py. requests.get is replaced, so no real API calls are made."""
 
+from datetime import date
+
 import pytest
 import requests
 
 import api_client
-from api_client import ApiError, get, heartbeat
+from api_client import ApiError, get, get_arrivals, get_departures, heartbeat
 from config import BASE_URL, TIMEOUT, MissingApiKeyError
+
+DAY = date(2026, 9, 29)
 
 
 class FakeResponse:
@@ -152,3 +156,40 @@ def test_heartbeat_passes_errors_on(monkeypatch):
     use_fake_get(monkeypatch, FakeResponse(status_code=401))
     with pytest.raises(ApiError, match="401"):
         heartbeat()
+
+
+# --- get_arrivals / get_departures ------------------------------------------
+
+def test_get_arrivals_uses_the_arrivals_url(monkeypatch):
+    calls = use_fake_get(monkeypatch, FakeResponse(data={"flights": []}))
+    get_arrivals("ARN", DAY)
+    assert calls["url"] == BASE_URL + "/ARN/arrivals/2026-09-29"
+
+
+def test_get_departures_uses_the_departures_url(monkeypatch):
+    calls = use_fake_get(monkeypatch, FakeResponse(data={"flights": []}))
+    get_departures("GOT", DAY)
+    assert calls["url"] == BASE_URL + "/GOT/departures/2026-09-29"
+
+
+def test_airport_code_is_made_upper_case(monkeypatch):
+    calls = use_fake_get(monkeypatch, FakeResponse(data={"flights": []}))
+    get_arrivals("arn", DAY)
+    assert "/ARN/" in calls["url"]
+
+
+def test_get_arrivals_returns_the_list_of_flights(monkeypatch):
+    flights = [{"flightId": "SK1"}, {"flightId": "SK2"}]
+    use_fake_get(monkeypatch, FakeResponse(data={"numberOfFlights": 2, "flights": flights}))
+    assert get_arrivals("ARN", DAY) == flights
+
+
+def test_missing_flights_gives_empty_list(monkeypatch):
+    use_fake_get(monkeypatch, FakeResponse(data={"numberOfFlights": 0}))
+    assert get_arrivals("ARN", DAY) == []
+
+
+def test_unexpected_data_gives_api_error(monkeypatch):
+    use_fake_get(monkeypatch, FakeResponse(data="IsAlive"))
+    with pytest.raises(ApiError, match="unexpected data"):
+        get_departures("ARN", DAY)

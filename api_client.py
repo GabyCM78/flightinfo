@@ -49,3 +49,21 @@ def get(path, params=None):
 def heartbeat():
     """Return True if the API answers "IsAlive"."""
     return get("/heartBeat") == "IsAlive"
+
+
+def _get_flights(direction, iata, day):
+    """Fetch "arrivals" or "departures" for one airport and one day (UTC). Returns a list."""
+    data = get(f"/{iata.upper()}/{direction}/{day.isoformat()}")
+    if not isinstance(data, dict):
+        raise ApiError("The API answered with unexpected data.")
+    return data.get("flights") or []
+
+
+def get_arrivals(iata, day):
+    """Return all arrivals at an airport on a date (a datetime.date, in UTC)."""
+    return _get_flights("arrivals", iata, day)
+
+
+def get_departures(iata, day):
+    """Return all departures from an airport on a date (a datetime.date, in UTC)."""
+    return _get_flights("departures", iata, day)
