@@ -6,7 +6,7 @@ import pytest
 import requests
 
 import api_client
-from api_client import ApiError, get, get_arrivals, get_departures, heartbeat
+from api_client import ApiError, get, get_arrivals, get_departures, heartbeat, query, unwrap_flight
 from config import BASE_URL, TIMEOUT, MissingApiKeyError
 
 DAY = date(2026, 9, 29)
@@ -193,3 +193,90 @@ def test_unexpected_data_gives_api_error(monkeypatch):
     use_fake_get(monkeypatch, FakeResponse(data="IsAlive"))
     with pytest.raises(ApiError, match="unexpected data"):
         get_departures("ARN", DAY)
+
+
+# --- query / unwrap_flight --------------------------------------------------
+
+def use_fake_pages(monkeypatch, pages):
+    """Replace requests.get with a fake that returns one page per call.
+
+    Returns a list with a copy of the params of every call.
+    """
+    calls = []
+    responses = iter(pages)
+
+    def fake_get(url, **kwargs):
+        calls.append(dict(kwargs["params"]))  # a copy, because query() changes params later
+        return FakeResponse(data=next(responses))
+
+    monkeypatch.setattr(api_client.requests, "get", fake_get)
+    return calls
+
+
+def arrival(flight_id):
+    """A wrapped /query item, as the real API sends it."""
+    return {"arrival": {"flightId": flight_id}}
+
+
+def test_query_single_page_unwraps_and_stops(monkeypatch):
+    # The real API sends a token even on the last page.
+    calls = use_fake_pages(monkeypatch, [{"flights": [arrival("SK1")], "continuationtoken": "T1"}])
+    assert query("x", count=5) == [{"flightId": "SK1"}]
+    assert len(calls) == 1
+
+
+def test_query_follows_the_token_to_page_two(monkeypatch):
+    calls = use_fake_pages(monkeypatch, [
+        {"flights": [arrival("SK1"), arrival("SK2")], "continuationtoken": "T1"},
+        {"flights": [arrival("SK3")], "continuationtoken": "T2"},
+    ])
+    flights = query("x", count=2)
+    assert [f["flightId"] for f in flights] == ["SK1", "SK2", "SK3"]
+    assert len(calls) == 2
+    assert "continuationtoken" not in calls[0]
+    assert calls[1]["continuationtoken"] == "T1"
+
+
+def test_query_stops_when_token_is_missing(monkeypatch):
+    calls = use_fake_pages(monkeypatch, [{"flights": [arrival("SK1"), arrival("SK2")]}])
+    assert len(query("x", count=2)) == 2
+    assert len(calls) == 1
+
+
+def test_query_never_uses_more_than_max_pages(monkeypatch):
+    full_page = {"flights": [arrival("SK1")], "continuationtoken": "T"}
+    calls = use_fake_pages(monkeypatch, [full_page] * 10)
+    query("x", count=1, max_pages=3)
+    assert len(calls) == 3
+
+
+def test_query_empty_page_gives_empty_list(monkeypatch):
+    calls = use_fake_pages(monkeypatch, [{"flights": [], "continuationtoken": "T"}])
+    assert query("x") == []
+    assert len(calls) == 1
+
+
+def test_query_sends_filter_and_count(monkeypatch):
+    calls = use_fake_pages(monkeypatch, [{"flights": []}])
+    query("airport eq 'ARN'", count=50)
+    assert calls[0] == {"filter": "airport eq 'ARN'", "count": 50}
+
+
+def test_query_unexpected_data_gives_api_error(monkeypatch):
+    use_fake_pages(monkeypatch, ["IsAlive"])
+    with pytest.raises(ApiError, match="unexpected data"):
+        query("x")
+
+
+@pytest.mark.parametrize(
+    "item, expected",
+    [
+        ({"arrival": {"flightId": "SK1"}}, {"flightId": "SK1"}),
+        ({"departure": {"flightId": "SK2"}}, {"flightId": "SK2"}),
+        ({"somethingElse": {"flightId": "SK3"}}, None),
+        ("not a dict", None),
+        (None, None),
+    ],
+)
+def test_unwrap_flight(item, expected):
+    assert unwrap_flight(item) == expected

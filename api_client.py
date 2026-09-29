@@ -67,3 +67,38 @@ def get_arrivals(iata, day):
 def get_departures(iata, day):
     """Return all departures from an airport on a date (a datetime.date, in UTC)."""
     return _get_flights("departures", iata, day)
+
+
+# Safety limit, so one query never uses too many API requests (the original had the same idea).
+MAX_PAGES = 5
+
+
+def unwrap_flight(item):
+    """Return the flight inside a /query item ({"arrival": {...}} or {"departure": {...}}), or None."""
+    if not isinstance(item, dict):
+        return None
+    return item.get("arrival") or item.get("departure")
+
+
+def query(filter_text, count=1000, max_pages=MAX_PAGES):
+    """Run an OData query and return the unwrapped flights from up to max_pages pages.
+
+    The API sends a continuationtoken even on the last page, so we also stop
+    when a page has fewer flights than we asked for.
+    """
+    params = {"filter": filter_text, "count": count}
+    flights = []
+    for _ in range(max_pages):
+        data = get("/query", params=params)
+        if not isinstance(data, dict):
+            raise ApiError("The API answered with unexpected data.")
+        page = data.get("flights") or []
+        for item in page:
+            flight = unwrap_flight(item)
+            if flight:
+                flights.append(flight)
+        token = data.get("continuationtoken")
+        if not token or len(page) < count:
+            break
+        params["continuationtoken"] = token
+    return flights
