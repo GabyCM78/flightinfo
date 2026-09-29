@@ -60,8 +60,11 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - Step 2 done: `formatting.py` with fmt_time, get_time_info, is_valid_flight,
   is_upcoming (takes optional `now` for tests), format_flight, print_flight.
 - Step 3 done: `tests/test_formatting.py`, 36 tests, all passing (`python -m pytest -v`).
-- Next: step 4, `api_client.py` (get + heartbeat first, then arrivals/departures, then query),
-  with tests that mock `requests`.
+- Step 4 part 1 done: `api_client.py` with `ApiError`, `get()` (timeout, clear error messages)
+  and `heartbeat()` (real call returned True). `tests/test_api_client.py` uses monkeypatch +
+  `FakeResponse`, fake key "test-key". 56 tests passing.
+- Next: check real error cases (wrong key, airport XXX, no network), then part 2
+  (`get_arrivals`/`get_departures`), then part 3 (`query`).
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)

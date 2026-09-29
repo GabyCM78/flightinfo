@@ -129,6 +129,33 @@ or using up API requests.
 - `pytest.ini` sets `pythonpath = .` so the tests can import modules from the project root,
   and `testpaths = tests` so pytest only looks in `tests/`.
 
+### Design decisions in `api_client.py` (step 4, part 1)
+- **One function talks to the internet:** `get(path, params)`. All other functions (`heartbeat`,
+  later `get_arrivals` etc.) call it, so error handling is written in one place only.
+- **Every request has `timeout=TIMEOUT` (10 s).** Without a timeout, `requests` can wait forever
+  and the app looks frozen.
+- **Every failure becomes an `ApiError` with a clear message** (instead of printing and returning `None`).
+  The menu will catch it and show the message. Same idea as `MissingApiKeyError` in `config.py`.
+  - HTTP 400/401/403/404/429 each have their own message; other codes get a general message.
+  - `requests.Timeout` → "did not answer within 10 seconds", `requests.ConnectionError` → "check your
+    internet connection", any other `requests` error → its type name.
+  - A response that is not valid JSON → `ApiError`.
+- **The key is only sent in a header**, never in the URL or in an error message.
+- `heartbeat()` returns `True` if the API answers `"IsAlive"`. Errors are passed on as `ApiError`,
+  so the user sees *why* it failed.
+- First real call: `heartbeat()` → `True` (2026-09-29).
+
+### Tests for `api_client.py`
+- `tests/test_api_client.py`: 20 tests. Total so far: **56 passed in 0.36 s**.
+- **No real API calls:** `monkeypatch` replaces `requests.get` with a fake function that returns a
+  small `FakeResponse` (status code + JSON) or raises an error (e.g. `requests.Timeout()`).
+  This saves API quota, works without network, and lets me create errors on demand.
+- A fixture with `autouse=True` sets a fake key (`"test-key"`) in every test, so the real key is never used.
+- Covered: correct URL, headers and timeout; each HTTP error; timeout; no network; invalid JSON;
+  missing key stops *before* any request; the key never appears in an error message; heartbeat.
+- I chose `monkeypatch` + my own `FakeResponse` over `unittest.mock.MagicMock` because it is explicit:
+  I can see exactly what the fake does.
+
 ---
 
 ## Phase 3 – Completion
@@ -141,7 +168,7 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest (36 tests so far), no real API calls |
+| Tests | None visible | pytest (56 tests so far), no real API calls |
 | Structure | Mostly one large file | Small modules, one job each |
 
 ---
