@@ -266,6 +266,38 @@ My decisions (**assumptions** where the video does not show it):
 - **Structure:** input parsing goes in its own module, `user_input.py` (testable, "validate at the edge").
   The airport is checked against `AIRPORTS` before any API call. Flight numbers may only contain letters and digits,
   so user input cannot break the OData filter (e.g. `SK1' or airport eq 'GOT`).
+
+### `user_input.py` (step 5a)
+- **`parse_airport(text)`**: accepts an IATA code (`arn`) or a whole word of the airport name (`Visby`, `arlanda`,
+  `GÖTEBORG`), or the full name. Only whole words count, so `"a"` does not match everything.
+  `"Stockholm"` matches both ARN and BMA; the first in `AIRPORTS` (ARN) wins, and a test documents this choice.
+  Returns `None` for unknown input, so the menu can ask again (like the original's `while True`).
+- **`parse_date(text, today=None)`**: accepts `now`, `today`, `tomorrow`, `yesterday` (and the Swedish words
+  `nu`, `idag`, `imorgon`, `igår` from the original) or `YYYY-MM-DD`. Returns a tuple `(date, upcoming_only)`:
+  `now` → `(today, True)`, everything else → `(date, False)`. Invalid input (`2026-02-30`, `29/9`) → `None`.
+  "Today" is the **Swedish** date, because that is what the user means. `today` can be passed in tests
+  (same idea as `now` in `is_upcoming`). `timedelta` handles month ends (30 Sep + 1 day = 1 Oct).
+- 31 tests in `tests/test_user_input.py`. Total: **109 passed in 0.33 s**.
+- **`parse_flight_id(text)`**: removes spaces and dashes and makes it upper case (`"sk 532"` → `"SK532"`).
+  Only 2–8 characters A–Z/0–9 are accepted (`isascii()` + `isalnum()`). This is the **security check**:
+  a `'` can never reach the OData filter, so `SK1' or airport eq 'GOT` is rejected (a small injection test).
+  `isascii()` is needed because `isalnum()` also accepts letters like `Å`.
+- **`build_filter(airport, day, flight_type=None, flight_id=None)`** is in `api_client.py`, not `user_input.py`,
+  because it is about the API's filter language (field names, `eq`, YYMMDD). `{day:%y%m%d}` gives `260929`.
+  Without `flight_type` the search finds both arrivals and departures. The values must already be validated.
+  _Not verified yet:_ whether the API finds `SK532` if the flight is stored as e.g. `SK0532`.
+- 15 more tests. Total: **124 passed in 0.35 s**.
+
+### `show_flights()` in `airport.py` (step 5b)
+- Prints 50 flights per page, like the original: `── Showing 50/327 ── (277 left)` and
+  `[Enter] next page | [a] show all | [q] back to menu`. Numbering continues on the next page (`[51]`),
+  because `enumerate(..., start=shown + 1)`. The last page does not ask. An unknown answer works like Enter.
+- `ask=input` is an optional argument, so tests pass a fake `input()` that returns fixed answers
+  and records every prompt (same idea as `now` and `today`). Functions can be passed as arguments in Python.
+- 7 tests in `tests/test_airport.py`, using `page_size=2` so 5 small flights are enough.
+- Tried it by hand with the mock data (327 valid arrivals): it looks like the original.
+- **Observation:** the flights come in the order the API sends them, **not sorted by time**
+  (e.g. [1] at 19:45, [73] at 00:05, [90] at 06:55). I do not know if the original sorted them.
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
@@ -280,7 +312,7 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest (78 tests so far), no real API calls |
+| Tests | None visible | pytest (124 tests so far), no real API calls |
 | Paging in OData query | Read `continuationToken` (wrong case), so page 2 was probably never fetched | Reads `continuationtoken`, stops on missing token **or** a non-full page, max 5 pages |
 | Structure | Mostly one large file | Small modules, one job each |
 | Destination overview | Separate script (`destinationer.py`), runs once and exits | Menu option 7, everything in one place |

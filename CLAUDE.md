@@ -69,9 +69,12 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
   4 tests using it. 66 tests passing.
 - Step 4 part 3 done: `query()` + `unwrap_flight()`, `MAX_PAGES = 5`. Real test: 342 flights over 2 pages.
   78 tests passing. **Step 4 done.**
-- Next: step 5, `airport.py` (menu 1–6 + q, 50 per page), then `destinations.py`.
-  Menu ideas from notes: check airport code against `AIRPORTS` before calling the API;
-  build `/query` filters from user input (validate flight id).
+- Step 5 plan: 5a `user_input.py` → 5b `show_flights` (paging) → 5c menu in `airport.py`
+  → 5d `destinations.py` as **menu option 7**. Menu decisions/assumptions are in docs/notes.md
+  ("Step 5 – menu"). English menu texts; Swedish date words also accepted.
+- 5a done: `user_input.py` with `parse_airport`, `parse_date` (returns `(date, upcoming_only)`, "now" → True),
+  `parse_flight_id` (A–Z/0–9 only); `build_filter` in `api_client.py`. 124 tests passing.
+- Next: 5b, `show_flights()` in `airport.py`.
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
@@ -170,7 +173,8 @@ flightinfo/
 ├── .gitignore              # .venv/ .env __pycache__/ .pytest_cache/
 ├── config.py               # reads the key from .env, BASE_URL, AIRPORTS
 ├── formatting.py           # fmt_time, get_time_info, is_valid_flight, is_upcoming, format_flight, print_flight
-├── api_client.py           # ApiError, get(), heartbeat(), get_arrivals(), get_departures(), unwrap_flight(), query()
+├── api_client.py           # ApiError, get(), heartbeat(), get_arrivals(), get_departures(), unwrap_flight(), query(), build_filter()
+├── user_input.py           # parse_airport(), parse_date(), parse_flight_id()
 ├── destinations.py         # city → country, destination overview
 ├── city_country.json
 ├── airport.py              # main menu (entry point)
@@ -181,6 +185,7 @@ flightinfo/
 ├── tests/
 │   ├── test_formatting.py  # exists, 36 tests
 │   ├── test_api_client.py  # exists, mocks requests, no real calls
+│   ├── test_user_input.py  # exists
 │   └── test_destinations.py
 └── docs/
     ├── notes.md            # running log of problems and solutions (exists)
