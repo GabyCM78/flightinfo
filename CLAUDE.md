@@ -67,7 +67,11 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - Step 4 part 2 done: `get_arrivals`/`get_departures` (take a `datetime.date`, return the flights list).
   Real departures saved as `mock_data/departures_sample.json`, and `test_formatting.py` has
   4 tests using it. 66 tests passing.
-- Next: step 4 part 3, `query()` with `continuationtoken`.
+- Step 4 part 3 done: `query()` + `unwrap_flight()`, `MAX_PAGES = 5`. Real test: 342 flights over 2 pages.
+  78 tests passing. **Step 4 done.**
+- Next: step 5, `airport.py` (menu 1–6 + q, 50 per page), then `destinations.py`.
+  Menu ideas from notes: check airport code against `AIRPORTS` before calling the API;
+  build `/query` filters from user input (validate flight id).
 
 ## Tech stack
 - Python 3.14 in a virtual environment (`.venv`)
@@ -81,7 +85,12 @@ Deadline: Thursday. Documentation, README, and code comments are written in **En
 - `GET /heartBeat` → `200 OK`, body is the JSON **string** `"IsAlive"` (not an object).
   Optional query param `evaluationId` (we do not use it). Note the capital B.
 - `GET /{IATA}/arrivals/{yyyy-mm-dd}` and `GET /{IATA}/departures/{yyyy-mm-dd}` (date in UTC)
-- `GET /query?filter=...&count=...&continuationtoken=...` (max 1000 per page; URL-escape the token)
+- `GET /query?filter=...&count=...&continuationtoken=...` (max 1000 per page; `requests` URL-encodes the token).
+  Filter fields: `airport`, `flightType` ('A'/'D'), `scheduled` (**YYMMDD**, e.g. '260929'), `flightId`;
+  operators `eq`, `and`, `or`, parentheses. Response: `{"flights": [...], "continuationtoken": "..."}`.
+  Each item is **wrapped**: `{"arrival": {...}}` or `{"departure": {...}}`. The token key is lower-case and
+  is sent **even on the last page**.
+- Rate limit exists (got a temporary 429 after several quick requests); exact limit unknown.
 - Response headers include `last-modified` and `last-modified-inminutes`.
 - Free tier: 10,000 requests/month, so tests use mock data and never call the real API.
 - Airports: ARN, GOT, BMA, MMX, LLA, UME, OSD, VBY, RNB, KRN
@@ -161,7 +170,7 @@ flightinfo/
 ├── .gitignore              # .venv/ .env __pycache__/ .pytest_cache/
 ├── config.py               # reads the key from .env, BASE_URL, AIRPORTS
 ├── formatting.py           # fmt_time, get_time_info, is_valid_flight, is_upcoming, format_flight, print_flight
-├── api_client.py           # get(), get_arrivals(), get_departures(), query(), heartbeat()
+├── api_client.py           # ApiError, get(), heartbeat(), get_arrivals(), get_departures(), unwrap_flight(), query()
 ├── destinations.py         # city → country, destination overview
 ├── city_country.json
 ├── airport.py              # main menu (entry point)
@@ -171,7 +180,7 @@ flightinfo/
 │   └── departures_sample.json # exists
 ├── tests/
 │   ├── test_formatting.py  # exists, 36 tests
-│   ├── test_api_client.py  # mocks requests, no real calls
+│   ├── test_api_client.py  # exists, mocks requests, no real calls
 │   └── test_destinations.py
 └── docs/
     ├── notes.md            # running log of problems and solutions (exists)

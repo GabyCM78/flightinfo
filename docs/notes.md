@@ -194,6 +194,47 @@ or using up API requests.
   `From` falls back to `ARN` from `flightLegIdentifier`, and `Baggage` shows `–`.
 - 4 new tests with the real departures data prove this (299 valid, the 146 departed flights are not
   upcoming, `From : ARN`, `To` = destination, `Baggage : –`). Total: **66 passed in 0.27 s**.
+
+### Research: the `/query` endpoint (step 4, part 3)
+From Swedavia's PDF "Using the FlightInfo API":
+- OData filter with the fields `airport`, `flightType` ('A' = arrivals, 'D' = departures), `scheduled`, `flightId`,
+  and the operators `eq`, `and`, `or` (parentheses allowed). Without a filter: all flights.
+- Example: `airport eq 'ARN' and scheduled eq '180209' and flightType eq 'D' and flightId eq 'SK007'`
+- `count`: default and max 1000. `continuationtoken`: "used for getting next page or flights changed since last request".
+
+Checked with a small exploration script (outside the project, `count=5`, the key is never printed), 2026-09-29:
+- The date format `scheduled eq '260929'` (**YYMMDD**) works, as in the documentation.
+- The response is a dict: `flights` (list) + `continuationtoken`.
+- **Surprise 1:** each flight is **wrapped**: `{"departure": {...}}` or `{"arrival": {...}}`. Inside is exactly the
+  same flight as from `/ARN/arrivals/...`, so `formatting.py` works after unwrapping.
+- **Surprise 2:** the key is **`continuationtoken`** (lower-case t). The original code read `data.get("continuationToken")`,
+  which would always give `None`, so its paging probably never fetched page 2
+  (unless the API has changed since the video was recorded).
+- The token looks like base64 (e.g. `H4sIAAAA...AAAA=`), so it can contain `+ / =`. `requests` URL-encodes
+  values in `params` automatically, so I do not need to do it myself.
+- **Surprise 3:** the API sends a `continuationtoken` **even on the last page**. Test: a query for one single
+  flight (`flightId eq 'D83209'`) returned 1 flight *and* a token. So "stop when there is no token" alone
+  would never stop, and the loop would always use `max_pages` requests.
+  **Solution:** stop when the token is missing **or** when a page has fewer flights than `count`.
+
+### `query()` and `unwrap_flight()`
+- `query(filter_text, count=1000, max_pages=5)` loops with `for _ in range(max_pages)` (cannot loop forever),
+  unwraps every item and adds the token to `params` for the next page. Returns a plain list of flights,
+  the same shape as `get_arrivals()`, so the menu can use `is_valid_flight` / `print_flight` everywhere.
+- 12 new tests with a fake `requests.get` that returns one page per call (`iter()` + `next()`).
+  It saves a **copy** of `params` for every call, because `query()` changes the same dict between calls.
+  Total: **78 passed in 0.40 s**.
+
+### Problem: 429 Too Many Requests during the real `query()` test
+- **What happened:** `query(..., count=200)` for ARN departures (342 flights, so 2 pages) stopped with
+  `ApiError: Too many requests (429). Wait a moment and try again.` My error handling worked: clear message, no crash.
+- **Cause:** a rate limit (requests per time unit), not the monthly quota. Only about 10 requests had been used that day.
+  The exact limit is not known.
+- **Solution:** waited 1 minute and ran the same query again. It worked: **342 flights** (page 1: 200, page 2: 142),
+  the same number as `/ARN/departures/2026-09-29`, and the first flight (BA779B) is the same too.
+  So the 429 was temporary (several requests close together earlier), and no code change was needed.
+  The message "Wait a moment and try again" was the right advice.
+- This also proves that paging works against the real API (page 2 was fetched, then the loop stopped).
 - Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
 
 ---
@@ -208,7 +249,8 @@ _(fill in later)_
 |---|---|---|
 | API key | Hardcoded in code | `.env`, never on GitHub |
 | Errors (network, key, input) | Can crash | Clear message, never crashes |
-| Tests | None visible | pytest (66 tests so far), no real API calls |
+| Tests | None visible | pytest (78 tests so far), no real API calls |
+| Paging in OData query | Read `continuationToken` (wrong case), so page 2 was probably never fetched | Reads `continuationtoken`, stops on missing token **or** a non-full page, max 5 pages |
 | Structure | Mostly one large file | Small modules, one job each |
 
 ---
