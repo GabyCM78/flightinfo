@@ -156,6 +156,26 @@ or using up API requests.
 - I chose `monkeypatch` + my own `FakeResponse` over `unittest.mock.MagicMock` because it is explicit:
   I can see exactly what the fake does.
 
+### Error handling checked against the real API (2026-09-29)
+| Case | How I tested it | Result |
+|---|---|---|
+| Wrong API key | `$env:SWEDAVIA_API_KEY = "wrong-key-123"` in the terminal, then `heartbeat()` | **401** → `ApiError: The API key was rejected (401). Check SWEDAVIA_API_KEY in .env.` |
+| Unknown airport | `get('/XXX/arrivals/2026-09-29')` | **400** (not 404) → `ApiError: The API did not accept the request (400). Check the airport code and date.` |
+| No network | Wi-Fi turned off, then `heartbeat()` | `socket.gaierror` → `urllib3` `NameResolutionError` → `requests.ConnectionError` → `ApiError: Could not connect to the API. Check your internet connection.` |
+
+- Trick: `load_dotenv()` does not overwrite an environment variable that already exists, so a fake key
+  set in the terminal wins over `.env`. I never had to edit `.env`. Afterwards: `Remove-Item Env:SWEDAVIA_API_KEY`.
+- The traceback is shown only because no menu catches the error yet (step 5 will).
+- I did not know in advance if an unknown airport gives 400 or 404, so both have a message.
+  The real API answered 400. Idea for step 5: check the code against `AIRPORTS` in `config.py`
+  *before* calling the API. That gives a faster, clearer message and saves requests.
+- Without network the lookup of `api.swedavia.se` fails at once, so it becomes a connection error,
+  not a timeout. The traceback is long because Python shows the whole chain of errors
+  ("During handling of the above exception, another exception occurred"). Read it from the bottom up.
+  Without my error handling, the user would only see this cryptic chain.
+- Timeout could not easily be forced against the real API, so it is covered by the mocked test only.
+- Original app: _(fill in: what happened in the video / what would happen with a wrong key?)_
+
 ---
 
 ## Phase 3 – Completion
