@@ -9,37 +9,38 @@ The goal is that I **understand** every part, not just that it works.
 
 ## Improvements over the original (in scope)
 1. **Security:** the original had the API key hardcoded. Mine reads it from `.env` (in `.gitignore`).
-2. **Stability:** error handling for wrong key (401), bad airport/date, timeouts, no network,
-   and missing fields in the JSON. The app shows a clear message and never crashes.
-   All requests use a timeout.
+2. **Stability:** error handling for wrong key (401), bad airport/date, timeouts, no network, and missing fields in the JSON. The app shows a clear message and never crashes. All requests use a timeout.
 3. **Tests:** pytest tests for the logic and the API client (with mocked requests).
 4. **Clean structure:** code split into small modules instead of one big file.
 
 Out of scope unless I ask: colored terminal output (rich), web UI, caching, export.
 
-Deadline: Thursday. Documentation, README, and code comments are written in **English**.
+Deadline: Thursday. Documentation, README, and code comments are written in *English**.
 
 ## About me
-- I am a career changer, studying web development and doing APL in AWS/DevOps/QA.
-- I am fairly new to Python. Explain simply: **what → why → how**, with concrete examples.
-- Do not talk down to me. I want to be able to solve similar problems myself.
+- Career changer with over 20 years of professional experience in personal assistance,
+  most recently as account manager, responsible for 50–70 assistants, client relationships,
+  and system ownership of the scheduling and administration tools.
+- Completing a web development program (Komvux, graduating October 2026) with workplace
+  training (APL) in AWS, DevOps, Terraform, CI/CD, and QA.
+- I bring strong skills in responsibility, structured problem-solving, and communication
+  into software development.
+- I am building my Python skills through this project. I want explanations that build real
+  understanding (what → why → how), so that I can make and defend my own technical decisions.
 - Talk to me in **Swedish**. Code, comments, commit messages, and docs are in English.
 
 ## Working rules (important)
 1. **Always ask before you create, change, or delete files, or run commands.**
    Show a short plan first and wait for my "ok".
 2. Work in **small steps**: one function or one file at a time.
-3. After each step: explain what the code does, run the tests, and suggest a commit message.
-   I do the commit myself.
+3. After each step: explain what the code does, run the tests, and suggest a commit message. I do the commit myself.
 4. If there are several ways to do something: compare them briefly, recommend one, and explain why.
 5. If you are unsure (e.g. how the API responds), say so. Do not guess.
 6. Never put the API key in code, in logs, or in commits. It is only read from `.env`.
-7. **Always give me step-by-step instructions for what I should do myself**: numbered steps
-   with the exact command to run, which file to open, and where to click in VS Code/GitHub.
-   Say what I should see if it worked. Give me one step at a time and wait for me to say
-   "done" (or show the error) before the next one.
-8. Keep `docs/notes.md` up to date yourself: write problems + solutions, findings and design
-   decisions into it directly after each step (no need to ask first), and tell me what you added.
+7. **Always give me step-by-step instructions for what I should do myself**: numbered steps with the exact command to run, which file to open, and where to click in VS Code/GitHub.
+Say what I should see if it worked. Give me one step at a time and wait for me to say
+"done" (or show the error) before the next one.
+8. Keep `docs/notes.md` up to date yourself: write problems + solutions, findings and design decisions into it directly after each step (no need to ask first), and tell me what you added.
 
 ## My environment
 - **Windows + PowerShell** in VS Code. Give PowerShell commands, not Mac/Linux commands.
